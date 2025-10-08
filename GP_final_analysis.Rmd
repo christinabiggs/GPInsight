@@ -1,5 +1,5 @@
 ---
-title: "Read_Raw_Data"
+title: "GP_Insight"
 output: html_document
 ---
 
@@ -10,30 +10,23 @@ library(dplyr)
 library(ggplot2)
 library(MASS)
 library(tidyr)
-library(RColorBrewer)
-library(viridis)
 library(readxl)
-library(shiny)
-library(shinydashboard)
-library(leafpop)
-library(leaflet)
 library(stats)
-library(yardstick)
 library(scales)
 
-data_path <- here::here("data/input")
+data_dir <- here::here("data/input")
 
-if(!dir.exists(data_path)) {
+if(!dir.exists(data_dir)) {
   dir.create(data_dir, recursive= TRUE)
 }
 
 ```
 
-```{r}
+```{r read_data}
 
-df_surgery_2024 <- read_excel(paste0(data_path,"/20250509-Health_Data.xlsx"),sheet="SUBSET_DATA")
+df_surgery_2024 <- read_excel(paste0(data_dir,"/20250509-Health_Data.xlsx"),sheet="SUBSET_DATA")
 
-total_dataset <- read.csv(paste0(data_path,"/GPDataCOMPLETE_2024.csv"))
+total_dataset <- read.csv(paste0(data_dir,"/GPDataCOMPLETE_2024.csv"))
 
 bnf_code_hist <- total_dataset %>%
   dplyr::rename(PracticeId=W00024,bnf_code=X0407020C0AAADAD,n_meds=X1,month=X202401) %>%
@@ -56,6 +49,15 @@ bnf_freq_dist <- bnf_proxy_hist %>%
 
 ggplot(data = bnf_freq_dist, aes(x = bnf_proxy_code, y = freq)) +
   geom_point() +
+  scale_x_continuous(limits=c(0,5000)) +
+  labs(title = "Frequency of all available medication issued over Wales in 2024",
+       y = "Number of prescriptions issued over 2024",
+       x = "Index of medication code") +
+  theme_minimal()
+
+
+ggplot(data = bnf_freq_dist, aes(x = bnf_proxy_code, y = freq)) +
+  geom_point() +
   scale_x_continuous(limits=c(0,50)) +
   labs(title = "Frequency of all available medication issued over Wales in 2024",
        y = "Number of prescriptions issued over 2024",
@@ -65,17 +67,22 @@ ggplot(data = bnf_freq_dist, aes(x = bnf_proxy_code, y = freq)) +
 ```
 ```{r gererate_surgery_stats}
 
+df_summary <- total_dataset %>%
+  dplyr::rename(PracticeId=W00024,bnf_code=X0407020C0AAADAD,n_meds=X1,month=X202401) %>%
+  dplyr::select(PracticeId,bnf_code,n_meds) %>%
+  dplyr::group_by(PracticeId) %>%
+  dplyr::summarise(unique_bnf_2024=n_distinct(bnf_code),total_prescriptions_2024=sum(n_meds)) 
+  
+df_surgery_2024 <- df_surgery_2024 %>%
+  dplyr::select(surgery_id,total_prescribing_patients) %>%
+  dplyr::filter(total_prescribing_patients>100)
+  
 df_summary <- df_surgery_2024 %>%
-  filter(total_prescribing_patients>100) %>%
-  mutate(n_monthly_2024=total_prescriptions_2024/12) %>%
-  mutate(patient_prescrip_permonth = 
-           total_prescriptions_2024/(total_prescribing_patients*12)) %>%
-  arrange(n_monthly_2024)
-
-```
+  dplyr::left_join(df_summary,join_by(surgery_id==PracticeId))%>%
+  dplyr::mutate(n_monthly_2024=total_prescriptions_2024/12) %>%
+  dplyr::arrange(n_monthly_2024)
 
 
-```{r}
 ggplot(data = df_summary, aes(x = n_monthly_2024, y = unique_bnf_2024, ymin=0)) +
   geom_point(colour="blue") +
   scale_fill_manual(values="blue") +
@@ -88,7 +95,7 @@ ggplot(data = df_summary, aes(x = n_monthly_2024, y = unique_bnf_2024, ymin=0)) 
 ```
 
 
-Reflected exponential
+Fit to reflected exponential
 
 ```{r}
 df_for_fit_full_range <- df_summary 
@@ -130,22 +137,16 @@ ggplot() +
 
 
 ```
-```{r}
-df_summary_all <- df_summary %>%
-  mutate(deviation_from_fullfit = unique_bnf_2024 - fullrange_fit) 
 
-```
-
-
-Simulation of uniform distribution
+Simulation of uniform distribution (yearly data) - uses a different set of x-values 
+as the curve plateaus at very small values of x.
 
 ```{r}
 df_final_single <- data.frame(Case = integer(0), 
                        Mean = numeric(0), SD = numeric(0), Percentile_5 = numeric(0))
 
 #create sequence for the for-loop. Each x-value is one of 372 hypothetical surgeries that has between 10 and 
-#the max observed number of prescriptions a month,
-#which approximates to the number of cases seen (one case per monthly prescription = max 66000)
+#the max observed number of prescriptions a year, which is 12 times the monthly rate
 
 df_seq1 <- data.frame(value = seq(from=10, to= 20000, by= 100))
 df_seq2 <- data.frame(value = seq(from=22000, to= 38000, by= 200))
@@ -157,12 +158,12 @@ Case_num <- 1
 
 #create a do loop to populate a random number of different medications for each surgery per month
 
-for (i in df_seq$value) { #value is the number of patients in each hypothetical surgery
+for (i in df_seq$value) { #value is the number of cases a month in each hypothetical surgery
 
-n_rows <- i # For each random patient case seen, one of 3883 medications will be the most appropriate
+n_rows <- i*12 # This is the number of prescriptions chosen each year
 n_cols <- 100 # This repeats the selection to get the mean and sd of distinct_counts.
 min_val <- 1
-max_val <- asymptote_fullrange
+max_val <- asymptote_fullrange # Subset of total from the fitted asymptote from reflected exponential
 
 df_prescriptions <- as.data.frame(
   replicate(n_cols, sample(min_val:max_val, n_rows, replace = TRUE))
@@ -188,10 +189,6 @@ Case_num = Case_num +1  # Now look at the next surgery in order of size, which w
 
 }
 
-```
-
-```{r}
-
 gplot1 <- ggplot(data=df_summary,aes(x=n_monthly_2024,y=unique_bnf_2024,ymin=0)) +
   geom_point(colour="blue") +
   scale_fill_manual(values="blue") +
@@ -199,74 +196,26 @@ gplot1 <- ggplot(data=df_summary,aes(x=n_monthly_2024,y=unique_bnf_2024,ymin=0))
   geom_line(data=df_final_single,aes(x=Case, y=Mean),linewidth=1.0,alpha=0.6) +
   labs(title = "Simulated prescriptions - uniform random model",
        x = "Prescriptions issued per month",
-       y = "Unique BNF Codes") +
+       y = "Unique BNF Codes over one year") +
   theme_minimal()
 
 
 plot(gplot1)
-```
-
-Now fit to the simulated data to see if the curve function is right
-
-```{r}
-df_for_fit2 <- df_final_single
-
-nls_log2 <- nls(Mean ~ a - b * exp(c * Case),
-               data = df_for_fit2,
-               start = list(a = BNFChem_range, 
-                            b = BNFChem_range, c=-0.00012))
-```
-
-This graph plots the simulated data along with the reflected exponential decay fit line.  
-```{r}
-
-new_x2 <- data.frame(Case = seq(min(df_final_single$Case), max(df_final_single$Case), length.out = 100))
-resid_sd2 <- sd(resid(nls_log2))
-new_x2$predicted_y <- predict(nls_log2, new_x2)
-new_x2$lwr <- new_x2$predicted_y - 1.96 * resid_sd2
-new_x2$upr <- new_x2$predicted_y + 1.96 * resid_sd2
-
-df_for_fit2$log_fit_line <- predict(nls_log2, newdata = new_x2$Case)
-  
-ggplot() +
-  geom_point(data = df_for_fit2, aes(x = Case, y = Mean), alpha = 1.0) +
-  geom_line(data = new_x2, aes(x = Case, y = predicted_y),
-            colour = "red", alpha = 1) +
-  labs(title = "Simulated uniform random model fitted with reflected exponential",
-       y = "Unique BNF Codes",
-       x = "Monthly Prescriptions in 2024") +
-  theme_minimal()
-
 
 ```
 
 
-```{r include=TRUE}
-
-y_pred <- predict(nls_log2) # Predicted values from the model
-y_actual <- df_for_fit2$Mean # Actual values
-ss_res <- sum((y_actual - y_pred)^2) # Residual sum of squares
-ss_tot <- sum((y_actual - mean(y_actual))^2) # Total sum of squares
-r_squared <- 1 - (ss_res / ss_tot) # R-squared
-
-residuals_nls <- resid(nls_log2)
-hist(residuals_nls,breaks=10)
-qqnorm(residuals_nls)
-qqline(residuals_nls)
-
-```
-
-Here we go through the logic of randomly selecting from the actual medication list using the measured frequency distribution - n_monthly
+Here we go through the logic of randomly selecting from the actual medication list using the measured frequency distribution - yearly 
 
 ```{r emulate_gp}
 
-emulate_gp_monthly <- function(df_summary,bnf_freq_dist){
+emulate_gp_yearly <- function(df_summary,bnf_freq_dist){
 
     n_surgery = nrow(df_summary)
   
     for (i in 1:n_surgery){ # We take one surgery at a time and assume each regular patient has one prescription a month.
   
-    n_rows <- as.integer(df_summary$n_monthly_2024[i]) #  For each patient case seen, one of the total known number of prescribed medications are chosen, according to the measured average frequency distribution.
+    n_rows <- as.integer(df_summary$total_prescriptions_2024[i]) #  For each patient case seen, one of the total known number of prescribed medications for that surgery are chosen, according to the measured average frequency distribution.
 
     n_cols <- 100
     
@@ -278,7 +227,6 @@ emulate_gp_monthly <- function(df_summary,bnf_freq_dist){
                                  n_rows, prob=bnf_freq_dist$rel_freq, replace=TRUE))
     )
 
-    
     colnames(df_prescriptions) <- paste0("Sample", 1:n_cols)
 
     distinct_counts <- df_prescriptions %>%
@@ -288,33 +236,28 @@ emulate_gp_monthly <- function(df_summary,bnf_freq_dist){
     tidyr::pivot_longer(cols = everything(), 
                         names_to = "Column", values_to = "DistinctCount")  
     # DistinctCount becomes for the maximum surgery size of 67000, the mean asymptotic value of 3883 different medications (in practice)
-  # Record the ?average distinct number of medications for each size of surgery
+  # Record the average distinct number of medications for each size of surgery
 
-    df_summary$sim_range[i] <- mean(distinct_counts$DistinctCount)
+    df_summary$emulate_range_yearly[i] <- mean(distinct_counts$DistinctCount)
 
     }  # next surgery
     
     return(df_summary)
 } 
 
-
-```
-```{r run_emulate}
-
-df_summary <- emulate_gp_monthly(df_summary,bnf_freq_dist)
-
-```
-
-```{r}
-
+df_summary <- emulate_gp_yearly(df_summary,bnf_freq_dist)
 ggplot(data = df_summary, aes(x = n_monthly_2024, y = unique_bnf_2024)) +
     geom_point(colour="blue") +
     scale_fill_manual(values="blue") +
     scale_x_continuous(labels = label_comma()) +
-    geom_line(data = df_summary, aes(x = n_monthly_2024, y = sim_range), linewidth=1, alpha = 1) +
+    geom_line(data = df_summary, aes(x = n_monthly_2024, 
+                                     y = emulate_range_yearly), linewidth=1, alpha = 1) +
     labs(title = "Using average medication distribution function",
-       y = "BNF Medication Range",
-       x = "Average Monthly Prescription Rate in 2024") +
+       y = "BNF Medication Range over 2024",
+       x = "Average monthly prescription rate in 2024") +
   theme_minimal()
 
 ```
+
+
+
