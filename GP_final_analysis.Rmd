@@ -195,7 +195,7 @@ for (i in df_seq$value) { #value is the number of cases a month in each hypothet
 n_rows <- i # This is the number of prescriptions chosen each year
 n_cols <- 100 # This repeats the selection to get the mean and sd of distinct_counts.
 min_val <- 1
-max_val <- asymptote_fullrange # Subset of total from the fitted asymptote from reflected exponential
+max_val <- max(df_summary$unique_bnf_2024) # Subset of total from the fitted asymptote from reflected exponential
 
 df_prescriptions <- as.data.frame(
   replicate(n_cols, sample(min_val:max_val, n_rows, replace = TRUE))
