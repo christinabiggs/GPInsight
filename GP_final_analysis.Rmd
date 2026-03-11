@@ -68,6 +68,12 @@ ggsave(bnf_freq_dist_plot,
        device = "png",
        height = 4, width = 6, units = "in")
 
+plot(bnf_freq_dist_plot)
+
+```
+
+```{r plot-zoom}
+
 bnf_freq_dist_plot_zoom <- ggplot(data = bnf_freq_dist, aes(x = bnf_proxy_code, y = freq)) +
   geom_point() +
   scale_x_continuous(limits=c(0,1000)) +
@@ -81,6 +87,7 @@ ggsave(bnf_freq_dist_plot_zoom,
        device = "png",
        height = 4, width = 6, units = "in")
 
+plot(bnf_freq_dist_plot_zoom)
 
 ```
 
@@ -103,6 +110,7 @@ raw_data_plot <- ggplot(data = df_summary, aes(x = total_prescriptions_2024, y =
        x = "Average Yearly Prescription Rate in 2024") +
   theme_minimal()
 
+plot(raw_data_plot)
 
 ggsave(raw_data_plot, 
        filename = "data/output/raw_data_plot.png",
@@ -153,6 +161,7 @@ refl_exp_fit_plot <- ggplot() +
        x = "Total Prescriptions in 2024") +
   theme_minimal()
 
+plot(refl_exp_fit_plot)
 
 ggsave(refl_exp_fit_plot, 
        filename = "data/output/refl_exp_fit_plot.png",
@@ -217,7 +226,7 @@ Case_num = Case_num +1  # Now look at the next surgery in order of size, which w
 
 ```{r plot}
 
-gplot1 <- ggplot(data=df_summary,aes(x=total_prescriptions_2024,y=unique_bnf_2024,ymin=0)) +
+random_model_plot <- ggplot(data=df_summary,aes(x=total_prescriptions_2024,y=unique_bnf_2024,ymin=0)) +
   geom_point(colour="blue") +
   scale_fill_manual(values="blue") +
   scale_x_continuous(labels = label_comma()) +
@@ -227,8 +236,13 @@ gplot1 <- ggplot(data=df_summary,aes(x=total_prescriptions_2024,y=unique_bnf_202
        y = "Unique BNF Codes over one year") +
   theme_minimal()
 
+ggsave(random_model_plot, 
+       filename = "data/output/random_model_plot.png",
+       device = "png",
+       height = 4, width = 6, units = "in")
 
-plot(gplot1)
+
+plot(random_model_plot)
 
 ```
 
