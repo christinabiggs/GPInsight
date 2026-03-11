@@ -51,7 +51,11 @@ bnf_freq_dist <- bnf_proxy_hist %>%
   dplyr::select(freq,bnf_proxy_code) %>%
   mutate(rel_freq=freq/bnf_total_2024) 
 
-ggplot(data = bnf_freq_dist, aes(x = bnf_proxy_code, y = freq)) +
+```
+
+```{r plot-bnf-dist}
+
+bnf_freq_dist_plot <- ggplot(data = bnf_freq_dist, aes(x = bnf_proxy_code, y = freq)) +
   geom_point() +
   scale_x_continuous(limits=c(0,5000)) +
   labs(title = "Frequency of all available medication issued over Wales in 2024",
@@ -59,7 +63,13 @@ ggplot(data = bnf_freq_dist, aes(x = bnf_proxy_code, y = freq)) +
        x = "Index of medication code") +
   theme_minimal()
 
+ggsave(bnf_freq_dist_plot, 
+       filename = "data/output/bnf_freq_dist.png",
+       device = "png",
+       height = 4, width = 6, units = "in")
+
 ```
+
 ```{r gererate_surgery_stats}
 
 df_summary <- total_dataset %>%
@@ -70,7 +80,7 @@ df_summary <- total_dataset %>%
   dplyr::filter(total_prescriptions_2024 > 5000)
   
 
-ggplot(data = df_summary, aes(x = total_prescriptions_2024, y = unique_bnf_2024, ymin=0)) +
+raw_data_plot <- ggplot(data = df_summary, aes(x = total_prescriptions_2024, y = unique_bnf_2024, ymin=0)) +
   geom_point(colour="blue") +
   scale_fill_manual(values="blue") +
   scale_x_continuous(labels = label_comma()) +
@@ -78,6 +88,13 @@ ggplot(data = df_summary, aes(x = total_prescriptions_2024, y = unique_bnf_2024,
        y = "BNF Medication Range",
        x = "Average Yearly Prescription Rate in 2024") +
   theme_minimal()
+
+
+ggsave(raw_data_plot, 
+       filename = "data/output/raw_data_plot.png",
+       device = "png",
+       height = 4, width = 6, units = "in")
+
 
 ```
 
@@ -108,7 +125,7 @@ df_for_fit_full_range$log_fit_line <- predict(nls_log_fullrange, newdata = new_x
 
 asymptote_fullrange <- as.integer(max(new_x_fullrange$predicted_y))
 
-ggplot() +
+refl_exp_fit_plot <- ggplot() +
   geom_point(data = df_summary, aes(x = total_prescriptions_2024, y = unique_bnf_2024, ymin=0,
                                     xmax=70000)) + 
   geom_ribbon(data = new_x_fullrange, aes(x = total_prescriptions_2024, ymin = lwr, ymax = upr),
@@ -122,6 +139,11 @@ ggplot() +
        x = "Total Prescriptions in 2024") +
   theme_minimal()
 
+
+ggsave(refl_exp_fit_plot, 
+       filename = "data/output/refl_exp_fit_plot.png",
+       device = "png",
+       height = 4, width = 6, units = "in")
 
 ```
 
