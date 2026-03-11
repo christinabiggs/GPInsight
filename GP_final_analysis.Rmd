@@ -14,10 +14,16 @@ library(readxl)
 library(stats)
 library(scales)
 
-data_dir <- here::here("data/input")
+input_data_dir <- here::here("data/input")
 
-if(!dir.exists(data_dir)) {
-  dir.create(data_dir, recursive= TRUE)
+if(!dir.exists(input_data_dir)) {
+  dir.create(input_data_dir, recursive= TRUE)
+}
+
+output_data_dir <- here::here("data/output")
+
+if(!dir.exists(output_data_dir)) {
+  dir.create(output_data_dir, recursive= TRUE)
 }
 
 ```
@@ -254,6 +260,11 @@ emulate_gplot <- ggplot(data = df_summary, aes(x = total_prescriptions_2024, y =
   theme_minimal()
 
 plot(emulate_gplot)
+
+ggsave(emulate_gplot, 
+       filename = "data/output/gp_emulation.png",
+       device = "png",
+       height = 4, width = 6, units = "in")
 
 ```
 
