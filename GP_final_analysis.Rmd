@@ -30,7 +30,7 @@ if(!dir.exists(output_data_dir)) {
 
 ```{r read_data}
 
-total_dataset <- read.csv(paste0(data_dir,"/GPDataCOMPLETE_2024.csv"))
+total_dataset <- read.csv(paste0(input_data_dir,"/GPDataCOMPLETE_2024.csv"))
 
 bnf_code_hist <- total_dataset %>%
   dplyr::rename(PracticeId=W00024,bnf_code=X0407020C0AAADAD,n_meds=X1,month=X202401) %>%
@@ -67,6 +67,20 @@ ggsave(bnf_freq_dist_plot,
        filename = "data/output/bnf_freq_dist.png",
        device = "png",
        height = 4, width = 6, units = "in")
+
+bnf_freq_dist_plot_zoom <- ggplot(data = bnf_freq_dist, aes(x = bnf_proxy_code, y = freq)) +
+  geom_point() +
+  scale_x_continuous(limits=c(0,1000)) +
+  labs(title = "Frequency of all available medication issued over Wales in 2024",
+       y = "Number of prescriptions issued over 2024",
+       x = "Index of medication code") +
+  theme_minimal()
+
+ggsave(bnf_freq_dist_plot_zoom, 
+       filename = "data/output/bnf_freq_dist_zoom.png",
+       device = "png",
+       height = 4, width = 6, units = "in")
+
 
 ```
 
