@@ -129,9 +129,9 @@ df_final_single <- data.frame(Case = integer(0),
 #create sequence for the for-loop. Each x-value is one of 372 hypothetical surgeries that has between 10 and 
 #the max observed number of prescriptions a year, which is 12 times the monthly rate
 
-df_seq1 <- data.frame(value = seq(from=10, to= 20000, by= 100))
-df_seq2 <- data.frame(value = seq(from=22000, to= 38000, by= 200))
-df_seq3 <- data.frame(value = seq(from=40000, to= 67000, by= 300))
+df_seq1 <- data.frame(value = seq(from=100, to= 20000, by= 100))
+df_seq2 <- data.frame(value = seq(from=22000, to= 380000, by= 200))
+df_seq3 <- data.frame(value = seq(from=400000, to= 800000, by= 300))
 
 df_seq <- rbind(df_seq1, df_seq2, df_seq3)
 
