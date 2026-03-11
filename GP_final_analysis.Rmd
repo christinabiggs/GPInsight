@@ -76,7 +76,7 @@ plot(bnf_freq_dist_plot)
 
 bnf_freq_dist_plot_zoom <- ggplot(data = bnf_freq_dist, aes(x = bnf_proxy_code, y = freq)) +
   geom_point() +
-  scale_x_continuous(limits=c(0,1000)) +
+  scale_x_continuous(limits=c(0,600)) +
   labs(title = "Frequency of all available medication issued over Wales in 2024",
        y = "Number of prescriptions issued over 2024",
        x = "Index of medication code") +
