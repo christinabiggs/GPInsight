@@ -242,7 +242,7 @@ df_summary <- fn_emulate_gp_yearly(df_summary,bnf_freq_dist)
 ```
 ```{r plot-emulation}
 
-ggplot(data = df_summary, aes(x = total_prescriptions_2024, y = unique_bnf_2024)) +
+emulate_gplot <- ggplot(data = df_summary, aes(x = total_prescriptions_2024, y = unique_bnf_2024)) +
     geom_point(colour="blue") +
     scale_fill_manual(values="blue") +
     scale_x_continuous(labels = label_comma()) +
@@ -253,6 +253,7 @@ ggplot(data = df_summary, aes(x = total_prescriptions_2024, y = unique_bnf_2024)
        x = "Total prescriptions in 2024") +
   theme_minimal()
 
+plot(emulate_gplot)
 
 ```
 
