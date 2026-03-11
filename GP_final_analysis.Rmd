@@ -53,15 +53,6 @@ ggplot(data = bnf_freq_dist, aes(x = bnf_proxy_code, y = freq)) +
        x = "Index of medication code") +
   theme_minimal()
 
-
-ggplot(data = bnf_freq_dist, aes(x = bnf_proxy_code, y = freq)) +
-  geom_point() +
-  scale_x_continuous(limits=c(0,50)) +
-  labs(title = "Frequency of all available medication issued over Wales in 2024",
-       y = "Number of prescriptions issued over 2024",
-       x = "Index of medication code") +
-  theme_minimal()
-
 ```
 ```{r gererate_surgery_stats}
 
@@ -69,25 +60,17 @@ df_summary <- total_dataset %>%
   dplyr::rename(PracticeId=W00024,bnf_code=X0407020C0AAADAD,n_meds=X1,month=X202401) %>%
   dplyr::select(PracticeId,bnf_code,n_meds) %>%
   dplyr::group_by(PracticeId) %>%
-  dplyr::summarise(unique_bnf_2024=n_distinct(bnf_code),total_prescriptions_2024=sum(n_meds)) 
+  dplyr::summarise(unique_bnf_2024=n_distinct(bnf_code),total_prescriptions_2024=sum(n_meds)) %>%
+  dplyr::filter(total_prescriptions_2024 > 5000)
   
-df_surgery_2024 <- df_surgery_2024 %>%
-  dplyr::select(surgery_id,total_prescribing_patients) %>%
-  dplyr::filter(total_prescribing_patients>100)
-  
-df_summary <- df_surgery_2024 %>%
-  dplyr::left_join(df_summary,join_by(surgery_id==PracticeId))%>%
-  dplyr::mutate(n_monthly_2024=total_prescriptions_2024/12) %>%
-  dplyr::arrange(n_monthly_2024)
 
-
-ggplot(data = df_summary, aes(x = n_monthly_2024, y = unique_bnf_2024, ymin=0)) +
+ggplot(data = df_summary, aes(x = total_prescriptions_2024, y = unique_bnf_2024, ymin=0)) +
   geom_point(colour="blue") +
   scale_fill_manual(values="blue") +
   scale_x_continuous(labels = label_comma()) +
   labs(title = "Prescription range versus rate - by surgery",
        y = "BNF Medication Range",
-       x = "Average Monthly Prescription Rate in 2024") +
+       x = "Average Yearly Prescription Rate in 2024") +
   theme_minimal()
 
 ```
@@ -100,37 +83,37 @@ df_for_fit_full_range <- df_summary
 
 starting_val <- max(df_summary$unique_bnf_2024)
 
-nls_log_fullrange <- nls(unique_bnf_2024 ~ a - b* exp(c * n_monthly_2024),
+nls_log_fullrange <- nls(unique_bnf_2024 ~ a - b* exp(c * total_prescriptions_2024),
                data = df_for_fit_full_range,
                start = list(a = starting_val, 
                             b = starting_val, c=-0.00012))
 
-df_summary$fullrange_fit <- predict(nls_log_fullrange, df_summary$n_monthly_2024)
+df_summary$fullrange_fit <- predict(nls_log_fullrange, df_summary$total_prescriptions_2024)
 
-new_x_fullrange <- data.frame(n_monthly_2024 = seq(min(df_summary$n_monthly_2024),
-                                            2*max(df_summary$n_monthly_2024), 
+new_x_fullrange <- data.frame(total_prescriptions_2024 = seq(min(df_summary$total_prescriptions_2024),
+                                            2*max(df_summary$total_prescriptions_2024), 
                                             length.out = 373))
 resid_sd <- sd(resid(nls_log_fullrange))
 new_x_fullrange$predicted_y <- predict(nls_log_fullrange, new_x_fullrange)
 new_x_fullrange$lwr <- new_x_fullrange$predicted_y - 1.96 * resid_sd
 new_x_fullrange$upr <- new_x_fullrange$predicted_y + 1.96 * resid_sd
 
-df_for_fit_full_range$log_fit_line <- predict(nls_log_fullrange, newdata = new_x_fullrange$n_monthly)
+df_for_fit_full_range$log_fit_line <- predict(nls_log_fullrange, newdata = new_x_fullrange$total_prescriptions_2024)
 
 asymptote_fullrange <- as.integer(max(new_x_fullrange$predicted_y))
 
 ggplot() +
-  geom_point(data = df_summary, aes(x = n_monthly_2024, y = unique_bnf_2024, ymin=0,
+  geom_point(data = df_summary, aes(x = total_prescriptions_2024, y = unique_bnf_2024, ymin=0,
                                     xmax=70000)) + 
-  geom_ribbon(data = new_x_fullrange, aes(x = n_monthly_2024, ymin = lwr, ymax = upr),
+  geom_ribbon(data = new_x_fullrange, aes(x = total_prescriptions_2024, ymin = lwr, ymax = upr),
               fill = "blue", alpha = 0.2) +
   geom_point(colour="blue") +
   scale_fill_manual(values="blue") +
   scale_x_continuous(labels = label_comma()) +
-  geom_line(data = df_summary, aes(x = n_monthly_2024, y = fullrange_fit), colour = "red", alpha = 1) +
+  geom_line(data = df_summary, aes(x = total_prescriptions_2024, y = fullrange_fit), colour = "red", alpha = 1) +
   labs(title = "Prescription data fitted with reflected exponential",
        y = "Unique BNF Codes",
-       x = "Monthly Prescriptions in 2024") +
+       x = "Total Prescriptions in 2024") +
   theme_minimal()
 
 
@@ -158,7 +141,7 @@ Case_num <- 1
 
 for (i in df_seq$value) { #value is the number of cases a month in each hypothetical surgery
 
-n_rows <- i*12 # This is the number of prescriptions chosen each year
+n_rows <- i # This is the number of prescriptions chosen each year
 n_cols <- 100 # This repeats the selection to get the mean and sd of distinct_counts.
 min_val <- 1
 max_val <- asymptote_fullrange # Subset of total from the fitted asymptote from reflected exponential
@@ -187,13 +170,18 @@ Case_num = Case_num +1  # Now look at the next surgery in order of size, which w
 
 }
 
-gplot1 <- ggplot(data=df_summary,aes(x=n_monthly_2024,y=unique_bnf_2024,ymin=0)) +
+
+```
+
+```{r plot}
+
+gplot1 <- ggplot(data=df_summary,aes(x=total_prescriptions_2024,y=unique_bnf_2024,ymin=0)) +
   geom_point(colour="blue") +
   scale_fill_manual(values="blue") +
   scale_x_continuous(labels = label_comma()) +
   geom_line(data=df_final_single,aes(x=Case, y=Mean),linewidth=1.0,alpha=0.6) +
   labs(title = "Simulated prescriptions - uniform random model",
-       x = "Prescriptions issued per month",
+       x = "Prescriptions issued per year",
        y = "Unique BNF Codes over one year") +
   theme_minimal()
 
@@ -202,60 +190,61 @@ plot(gplot1)
 
 ```
 
-
 Here we go through the logic of randomly selecting from the actual medication list using the measured frequency distribution - yearly 
 
 ```{r emulate_gp}
 
-emulate_gp_yearly <- function(df_summary,bnf_freq_dist){
+fn_emulate_gp_yearly <- function(df_summary,bnf_freq_dist){
 
     n_surgery = nrow(df_summary)
   
     for (i in 1:n_surgery){ # We take one surgery at a time and assume each regular patient has one prescription a month.
   
-    n_rows <- as.integer(df_summary$total_prescriptions_2024[i]) #  For each patient case seen, one of the total known number of prescribed medications for that surgery are chosen, according to the measured average frequency distribution.
+      n_rows <- as.integer(df_summary$total_prescriptions_2024[i]) #  For each patient case seen, one of the total known number of prescribed medications for that surgery are chosen, according to the measured average frequency distribution.
 
-    n_cols <- 100
+      n_cols <- 100
     
-    bnf_code_num <- nrow(bnf_freq_dist)
+      bnf_code_num <- nrow(bnf_freq_dist)
 
-    df_prescriptions <- as.data.frame(
+      df_prescriptions <- as.data.frame(
       
         replicate(n_cols, sample(1:bnf_code_num, 
                                  n_rows, prob=bnf_freq_dist$rel_freq, replace=TRUE))
-    )
+      )
 
-    colnames(df_prescriptions) <- paste0("Sample", 1:n_cols)
+      colnames(df_prescriptions) <- paste0("Sample", 1:n_cols)
 
-    distinct_counts <- df_prescriptions %>%
-      summarise(across(everything(),
-        ~ n_distinct(.)
-    )) %>%
-    tidyr::pivot_longer(cols = everything(), 
+      distinct_counts <- df_prescriptions %>%
+        summarise(across(everything(),
+          ~ n_distinct(.)
+      )) %>%
+      tidyr::pivot_longer(cols = everything(), 
                         names_to = "Column", values_to = "DistinctCount")  
-    # DistinctCount becomes for the maximum surgery size of 67000, the mean asymptotic value of 3883 different medications (in practice)
-  # Record the average distinct number of medications for each size of surgery
+      # DistinctCount becomes for the maximum surgery size of 67000, the mean asymptotic value of 3883 different medications (in practice)
+      # Record the average distinct number of medications for each size of surgery
 
-    df_summary$emulate_range_yearly[i] <- mean(distinct_counts$DistinctCount)
+      df_summary$emulate_range_yearly[i] <- mean(distinct_counts$DistinctCount)
 
     }  # next surgery
     
     return(df_summary)
 } 
 
-df_summary <- emulate_gp_yearly(df_summary,bnf_freq_dist)
-ggplot(data = df_summary, aes(x = n_monthly_2024, y = unique_bnf_2024)) +
+```
+
+```{r plot-emulation}
+
+df_summary <- fn_emulate_gp_yearly(df_summary,bnf_freq_dist)
+
+ggplot(data = df_summary, aes(x =  total_prescriptions_2024, y = unique_bnf_2024)) +
     geom_point(colour="blue") +
     scale_fill_manual(values="blue") +
     scale_x_continuous(labels = label_comma()) +
-    geom_line(data = df_summary, aes(x = n_monthly_2024, 
+    geom_line(data = df_summary, aes(x = total, 
                                      y = emulate_range_yearly), linewidth=1, alpha = 1) +
     labs(title = "Using average medication distribution function",
        y = "BNF Medication Range over 2024",
-       x = "Average monthly prescription rate in 2024") +
+       x = "Total prescriptions in 2024") +
   theme_minimal()
 
 ```
-
-
-
