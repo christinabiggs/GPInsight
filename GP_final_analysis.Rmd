@@ -32,8 +32,16 @@ if(!dir.exists(output_data_dir)) {
 
 total_dataset <- read.csv(paste0(input_data_dir,"/GPDataCOMPLETE_2024.csv"))
 
+total_dataset <- total_dataset %>%
+   dplyr::rename(PracticeId=W00024,bnf_code=X0407020C0AAADAD,n_meds=X1,month=X202401) 
+
+total_dataset
+
+```
+
+```{r frequency_dist}
+
 bnf_code_hist <- total_dataset %>%
-  dplyr::rename(PracticeId=W00024,bnf_code=X0407020C0AAADAD,n_meds=X1,month=X202401) %>%
   dplyr::select(bnf_code,n_meds) %>%
   dplyr::group_by(bnf_code) %>%
   dplyr::summarise(freq=sum(n_meds)) %>%
@@ -45,11 +53,16 @@ bnf_proxy_code <- c(1:bnf_code_prescribed)
 
 bnf_proxy_hist <- cbind(bnf_code_hist,bnf_proxy_code)
 
+```
+```{r prepare_freq_distribution}
+
 bnf_total_2024 <- sum(bnf_proxy_hist$freq)
 
 bnf_freq_dist <- bnf_proxy_hist %>%
   dplyr::select(freq,bnf_proxy_code) %>%
   mutate(rel_freq=freq/bnf_total_2024) 
+
+bnf_freq_dist
 
 ```
 
@@ -94,12 +107,16 @@ plot(bnf_freq_dist_plot_zoom)
 ```{r gererate_surgery_stats}
 
 df_summary <- total_dataset %>%
-  dplyr::rename(PracticeId=W00024,bnf_code=X0407020C0AAADAD,n_meds=X1,month=X202401) %>%
   dplyr::select(PracticeId,bnf_code,n_meds) %>%
   dplyr::group_by(PracticeId) %>%
   dplyr::summarise(unique_bnf_2024=n_distinct(bnf_code),total_prescriptions_2024=sum(n_meds)) %>%
   dplyr::filter(total_prescriptions_2024 > 5000)
   
+
+df_summary
+```
+
+```{r plot_raw_data}
 
 raw_data_plot <- ggplot(data = df_summary, aes(x = total_prescriptions_2024, y = unique_bnf_2024, ymin=0)) +
   geom_point(colour="blue") +
